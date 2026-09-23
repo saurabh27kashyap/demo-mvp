@@ -2,9 +2,13 @@
 
 Natural-language payroll questions answered directly from the database.
 
-Ask *"Is anyone paid below the legal minimum wage for their trade?"* and the agent plans the
-lookups itself, writes and runs its own read-only SQL — as many queries as the question needs
-— and returns an answer backed by every query it ran.
+Built for a site foreman, who asks whatever he needs in plain English — one worker's hours, a
+short payment, wage compliance across a whole site. There is no fixed list of reports and no
+query templates: the questions are open-ended, and the agent plans the lookups itself, writes
+and runs its own read-only SQL — as many queries as the question takes — and returns an answer
+backed by every query it ran.
+
+A demo, running on seeded sample data.
 
 **Java 21 · Spring Boot 4 · H2 · Groq (`openai/gpt-oss-120b`)**
 
