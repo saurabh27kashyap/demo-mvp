@@ -46,8 +46,12 @@ public class DatabaseSchema {
         return cached;
     }
 
-    /** One column of one table, as the database describes it. */
-    private record Column(String table, String name, boolean isText) {
+    /**
+     * One column of one table, as the database describes it. {@code listValues} marks the
+     * columns worth showing real values for: text, and dates. Dates matter because the pay
+     * week is a date now, and the model has to see which weeks actually hold data.
+     */
+    private record Column(String table, String name, boolean listValues) {
     }
 
     /** INFORMATION_SCHEMA is built into every SQL database - it describes its own structure. */
@@ -58,10 +62,16 @@ public class DatabaseSchema {
                 (row, rowNumber) -> new Column(
                         row.getString("TABLE_NAME").toLowerCase(),
                         row.getString("COLUMN_NAME").toLowerCase(),
-                        row.getString("DATA_TYPE").toUpperCase().contains("CHAR")));
+                        isListable(row.getString("DATA_TYPE"))));
     }
 
-    /** Writes one line per table, plus the real values of its small text columns. */
+    /** Text and date columns have values worth listing; numbers and ids do not. */
+    private static boolean isListable(String dataType) {
+        String type = dataType.toUpperCase();
+        return type.contains("CHAR") || type.equals("DATE");
+    }
+
+    /** Writes one line per table, plus the real values of its small text and date columns. */
     private String buildTables(List<Column> columns, List<String> tables) {
         StringBuilder description = new StringBuilder();
 
@@ -73,7 +83,7 @@ public class DatabaseSchema {
             description.append(table).append("(").append(String.join(", ", names)).append(")\n");
 
             columns.stream()
-                    .filter(column -> column.table().equals(table) && column.isText())
+                    .filter(column -> column.table().equals(table) && column.listValues())
                     .forEach(column -> distinctValues(table, column.name()).ifPresent(values ->
                             description.append("    ").append(column.name())
                                     .append(" values: ").append(values).append("\n")));

@@ -18,20 +18,20 @@ class DatabaseSchemaTest {
     void listsEveryTableWithItsColumns() {
         assertThat(databaseSchema.describeForModel())
                 .contains("worker(id, employee_code, name, classification, hourly_rate)")
-                .contains("shift(id, worker_id, project_id, work_date, week, hours_worked)")
-                .contains("pay_record(id, worker_id, week, amount_paid)")
+                .contains("shift(id, worker_id, project_id, work_date, week_starting, hours_worked)")
+                .contains("pay_record(id, worker_id, week_starting, amount_paid)")
                 .contains("wage_determination(id, classification, project_id, min_hourly_rate)");
     }
 
     // Without the real values, the model cannot know that 'Site C' is a project NAME and not
     // a location, and it silently queries the wrong column
     @Test
-    void listsTheRealValuesOfTextColumnsSoTheModelNeverGuesses() {
+    void listsTheRealValuesOfTextAndDateColumnsSoTheModelNeverGuesses() {
         assertThat(databaseSchema.describeForModel())
                 .contains("name values: Site A | Site B | Site C")
                 .contains("Thane")
                 .contains("classification values: Carpenter | Electrician | Laborer | Plumber")
-                .contains("week values: 2026-W37 | 2026-W38");
+                .contains("week_starting values: 2026-09-07 | 2026-09-14");
     }
 
     // Derived from the database, not hand-written, so a new table can't leave them stale

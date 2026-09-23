@@ -14,7 +14,8 @@ import org.springframework.web.client.RestClientException;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.temporal.IsoFields;
+import java.time.DayOfWeek;
+import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -210,12 +211,13 @@ public class PayrollAgent {
                 """
                 + today() + """
 
-                Resolve every relative date against that, never against your own training data:
-                "this week" is the week above, "last week" is the one before it, "today" is that
-                date. The weeks that actually hold data are listed under week values in the
+                Resolve every relative date against that, never against your own training data.
+                A pay week is identified by the Monday it starts on, so "this week" means the
+                Monday given above and "last week" means the Monday seven days before it. The
+                weeks that actually hold data are listed under week_starting values in the
                 schema below. If the week you resolved to is not one of them, do not just say
-                there is no data - answer for the most recent week that does have data and state
-                clearly which week you used.
+                there is no data - answer for the most recent week that does have data and say
+                which week that was, written out plainly, e.g. "the week starting 14 Sep 2026".
 
                 YOUR TOOLS
                 - execute_sql(sql): runs ONE read-only SELECT or WITH query and returns the rows
@@ -241,17 +243,17 @@ public class PayrollAgent {
                 - pay_record is what a worker was actually paid for one whole week.
                 - wage_determination is the legally required minimum hourly rate for a trade
                   (classification) on a specific site.
-                - shift.week and pay_record.week use identical labels, so hours worked and money
-                  paid for a week line up on (worker_id, week). Never derive a week from
-                  work_date.
+                - shift.week_starting and pay_record.week_starting both hold the Monday of the
+                  pay week, so hours worked and money paid line up on (worker_id, week_starting).
+                  Never derive the week from work_date.
 
-                WORKED EXAMPLE - "Was Ramesh (id 1) paid correctly in 2026-W38?"
+                WORKED EXAMPLE - "Was Ramesh (id 1) paid correctly for the week of 14 Sep?"
                 1. Hours worked: SELECT SUM(hours_worked) FROM shift
-                   WHERE worker_id = 1 AND week = '2026-W38'                  -> 38
+                   WHERE worker_id = 1 AND week_starting = '2026-09-14'       -> 38
                 2. His rate:     SELECT hourly_rate FROM worker WHERE id = 1  -> 250
                 3. Expected pay: calculate('38 * 250')                        -> 9500
                 4. Actually paid: SELECT amount_paid FROM pay_record
-                   WHERE worker_id = 1 AND week = '2026-W38'                  -> 9000
+                   WHERE worker_id = 1 AND week_starting = '2026-09-14'       -> 9000
                 5. Shortfall:    calculate('9500 - 9000')                     -> 500
                    Conclusion: he was underpaid by Rs.500 for that week.
 
@@ -316,9 +318,9 @@ public class PayrollAgent {
      */
     private static String today() {
         LocalDate today = LocalDate.now();
-        String week = today.get(IsoFields.WEEK_BASED_YEAR) + "-W"
-                + String.format("%02d", today.get(IsoFields.WEEK_OF_WEEK_BASED_YEAR));
-        return "Today is " + today + " (" + today.getDayOfWeek() + "), which falls in week " + week + ".";
+        LocalDate monday = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+        return "Today is " + today + " (" + today.getDayOfWeek() + ")."
+                + " The pay week containing today starts on Monday " + monday + ".";
     }
 
     // ================= 3. the HTTP call to Groq =================

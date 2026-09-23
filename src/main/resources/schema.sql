@@ -20,10 +20,10 @@ CREATE TABLE shift (
     worker_id INT NOT NULL,
     project_id INT NOT NULL,
     work_date DATE NOT NULL,
-    -- Same format as pay_record.week ('2026-W37'). Payroll is reconciled per pay week, so the
-    -- week label is stored here directly: without it, comparing hours worked against pay paid
-    -- would need date-to-ISO-week maths in every query, which is where text-to-SQL goes wrong.
-    week VARCHAR(20) NOT NULL,
+    -- The Monday that starts the pay week this day belongs to, e.g. 2026-09-07.
+    -- Same column in pay_record, so hours worked and money paid line up on it. Storing it
+    -- directly means no date maths in any query, which is where text-to-SQL goes wrong.
+    week_starting DATE NOT NULL,
     hours_worked DECIMAL(5,2) NOT NULL,
     FOREIGN KEY (worker_id) REFERENCES worker(id),
     FOREIGN KEY (project_id) REFERENCES project(id)
@@ -32,12 +32,13 @@ CREATE TABLE shift (
 CREATE TABLE pay_record (
     id INT AUTO_INCREMENT PRIMARY KEY,
     worker_id INT NOT NULL,
-    week VARCHAR(20) NOT NULL,
+    -- The Monday that starts the pay week, matching shift.week_starting.
+    week_starting DATE NOT NULL,
     amount_paid DECIMAL(10,2) NOT NULL,
     FOREIGN KEY (worker_id) REFERENCES worker(id),
     -- A worker is paid once per week. Without this, a double payment run would silently
     -- insert a second row and every "was he paid correctly" answer would be wrong.
-    UNIQUE (worker_id, week)
+    UNIQUE (worker_id, week_starting)
 );
 
 -- Legal minimum rate per trade, per project (prevailing wage / Davis-Bacon style rule)
@@ -52,7 +53,7 @@ CREATE TABLE wage_determination (
 -- Every payroll question filters shifts by worker and pay week, so that pair is indexed.
 -- At 70 rows it changes nothing; at a real company's volume it is the difference between
 -- a full table scan and an index lookup on every single question asked.
-CREATE INDEX idx_shift_worker_week ON shift(worker_id, week);
+CREATE INDEX idx_shift_worker_week ON shift(worker_id, week_starting);
 
 -- Restricted DB user - LLM-generated SQL runs as THIS user, not the admin 'sa' user.
 -- Only SELECT is granted, so even if the app-level safety check ever fails, the
