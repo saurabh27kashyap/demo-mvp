@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Payroll Query Assistant</title>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<style>
+  :root {
+    --bg: #f4f6f8;
+    --card: #ffffff;
+    --text: #1f2937;
+    --muted: #6b7280;
+    --accent: #2563eb;
+    --accent-dark: #1d4ed8;
+    --border: #e5e7eb;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    margin: 0;
+    padding: 40px 16px;
+    display: flex;
+    justify-content: center;
+  }
+  .card {
+    background: var(--card);
+    max-width: 720px;
+    width: 100%;
+    border-radius: 16px;
+    box-shadow: 0 1px 3px rgba(15,23,42,0.06), 0 12px 32px rgba(15,23,42,0.08);
+    padding: 32px;
+  }
+  h1 {
+    font-size: 22px;
+    letter-spacing: -0.02em;
+    margin: 0 0 5px;
+  }
+  .subtitle {
+    color: var(--muted);
+    font-size: 13px;
+    margin-bottom: 22px;
+  }
+  .examples-label {
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    margin-top: 18px;
+  }
+  .input-row {
+    display: flex;
+    gap: 8px;
+  }
+  #question {
+    flex: 1;
+    padding: 12px 14px;
+    font-size: 15px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    outline: none;
+    min-width: 0;
+  }
+  #question:focus { border-color: var(--accent); }
+  button {
+    padding: 12px 20px;
+    font-size: 15px;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+  }
+  button:hover { background: var(--accent-dark); }
+  button:disabled { background: #93c5fd; cursor: not-allowed; }
+
+  .examples {
+    margin-top: 14px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .examples span {
+    background: #eef2ff;
+    color: var(--accent-dark);
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .examples span:hover { background: #e0e7ff; }
+
+  #answer {
+    margin-top: 22px;
+    padding: 16px 18px;
+    background: #fafafa;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    min-height: 30px;
+    font-size: 14.5px;
+    line-height: 1.6;
+  }
+  #answer:empty { display: none; padding: 0; border: none; margin-top: 0; }
+  #answer table { border-collapse: collapse; width: 100%; margin: 10px 0; }
+  #answer th, #answer td { border: 1px solid var(--border); padding: 6px 10px; text-align: left; font-size: 13.5px; }
+  #answer th { background: #f1f5f9; }
+  .loading { color: var(--muted); font-style: italic; }
+  .trace {
+    margin-top: 18px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+  }
+  .trace summary {
+    cursor: pointer;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--accent-dark);
+    list-style: none;
+  }
+  .trace summary::before {
+    content: '▸ ';
+    display: inline-block;
+    transition: transform 0.15s ease;
+  }
+  .trace[open] summary::before { content: '▾ '; }
+  .trace summary:hover { color: var(--accent); }
+
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+    gap: 8px;
+    margin-top: 14px;
+  }
+  .stat {
+    background: #f8fafc;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .stat-label {
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+  }
+  .stat-value {
+    font-size: 15px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--text);
+  }
+
+  .trace-heading {
+    margin-top: 16px;
+    margin-bottom: 6px;
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+  }
+  .trace pre {
+    background: #0f172a;
+    color: #e2e8f0;
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin: 0 0 6px;
+    overflow-x: auto;
+    font-size: 11.5px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .choices { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+  .choice-btn {
+    background: white;
+    color: var(--accent-dark);
+    border: 1px solid var(--accent);
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-weight: 500;
+  }
+  .choice-btn:hover { background: var(--accent); color: white; }
+
+  @media (max-width: 480px) {
+    .input-row { flex-direction: column; }
+    button { width: 100%; }
+  }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>🏗️ Payroll Query Assistant</h1>
+    <div class="subtitle">Foreman-facing pay query agent — data + AI</div>
+
+    <div class="input-row">
+      <input type="text" id="question" placeholder="e.g. Why is Ramesh's pay short this week?" />
+      <button id="askBtn" onclick="ask()">Ask</button>
+    </div>
+
+    <div class="examples-label">Try one</div>
+    <div class="examples">
+      <span onclick="fill(this)">What is Suresh's hourly rate?</span>
+      <span onclick="fill(this)">What is Ramesh's hourly rate?</span>
+      <span onclick="fill(this)">Why is Mahesh's pay short in 2026-W38?</span>
+      <span onclick="fill(this)">Who worked the most hours in 2026-W38?</span>
+      <span onclick="fill(this)">Is anyone paid below the legal minimum wage for their trade?</span>
+    </div>
+
+    <div id="answer"></div>
+  </div>
+
+  <script>
+    function fill(el) {
+      document.getElementById('question').value = el.textContent;
+      document.getElementById('question').focus();
+    }
+
+    async function ask(customQuestion) {
+      const question = customQuestion || document.getElementById('question').value.trim();
+      if (!question) return;
+      const answerBox = document.getElementById('answer');
+      const btn = document.getElementById('askBtn');
+      btn.disabled = true;
+      answerBox.className = 'loading';
+      answerBox.textContent = 'Thinking...';
+      try {
+        const res = await fetch('/query', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ question: question })
+        });
+        const data = await res.json();
+        answerBox.className = '';
+        renderAnswer(data, question);
+      } catch (err) {
+        answerBox.className = '';
+        answerBox.textContent = 'Error: ' + err;
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    // If the agent found the name ambiguous (e.g. 2 "Ramesh"s), it sends back an answer
+    // starting with "AMBIGUOUS" - we render that as clickable buttons instead of plain text
+    function renderAnswer(data, originalQuestion) {
+      const answerBox = document.getElementById('answer');
+      const trimmed = data.answer.trim();
+
+      if (trimmed.startsWith('AMBIGUOUS')) {
+        answerBox.innerHTML = '<p><strong>Which worker do you mean? Pick one:</strong></p>';
+        const choices = document.createElement('div');
+        choices.className = 'choices';
+
+        trimmed.split('\n').forEach(line => {
+          const match = line.match(/id=(\d+),\s*(?:code=([^,]+),\s*)?name=([^,]+),\s*classification=(.+)/);
+          if (match) {
+            const id = match[1];
+            const code = match[2] ? match[2].trim() : null;
+            const name = match[3].trim();
+            const classification = match[4].trim();
+            const btn = document.createElement('button');
+            btn.className = 'choice-btn';
+            btn.textContent = name + ' — ' + classification + (code ? ' (' + code + ')' : '');
+            // Stateless: the choice is just the same question asked again, now with the id in it
+            btn.onclick = () => ask(originalQuestion + ' (worker id=' + id + ')');
+            choices.appendChild(btn);
+          }
+        });
+
+        answerBox.appendChild(choices);
+      } else {
+        answerBox.innerHTML = marked.parse(data.answer || '');
+        answerBox.appendChild(buildTrace(data));
+      }
+    }
+
+    // The collapsed "how this answer was produced" panel: tool calls, tokens, cost, time,
+    // and the exact SQL that ran - so any number above can be checked against the database.
+    function buildTrace(data) {
+        const trace = document.createElement('details');
+        trace.className = 'trace';
+
+        const summary = document.createElement('summary');
+        const queries = data.sqlQueries || [];
+        summary.textContent = 'How this was answered — '
+            + (data.toolCalls || 0) + ' tool call' + (data.toolCalls === 1 ? '' : 's')
+            + ', ' + queries.length + ' quer' + (queries.length === 1 ? 'y' : 'ies');
+        trace.appendChild(summary);
+
+        const stats = document.createElement('div');
+        stats.className = 'stats';
+        [['Tool calls', data.toolCalls ?? '—'],
+         ['Tokens', (data.totalTokens ?? 0).toLocaleString()],
+         ['Cost', '$' + (data.estimatedCostUsd ?? 0).toFixed(6)],
+         ['Time', ((data.durationMs ?? 0) / 1000).toFixed(1) + 's']
+        ].forEach(([label, value]) => {
+          const stat = document.createElement('div');
+          stat.className = 'stat';
+          stat.innerHTML = '<span class="stat-label"></span><span class="stat-value"></span>';
+          stat.querySelector('.stat-label').textContent = label;
+          stat.querySelector('.stat-value').textContent = value;
+          stats.appendChild(stat);
+        });
+        trace.appendChild(stats);
+
+        if (queries.length > 0) {
+          const heading = document.createElement('div');
+          heading.className = 'trace-heading';
+          heading.textContent = 'SQL executed';
+          trace.appendChild(heading);
+          queries.forEach((sql, i) => {
+            const pre = document.createElement('pre');
+            pre.textContent = (i + 1) + '.  ' + sql;
+            trace.appendChild(pre);
+          });
+        }
+        return trace;
+    }
+
+    document.getElementById('question').addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') ask();
+    });
+  </script>
+</body>
+</html>
